@@ -1,0 +1,76 @@
+var DragQueue = {
+		/*
+		*	这个是所有数据池。用于返回时，全量渲染
+		*/
+		DataPool:[],
+		/*
+		*	这个是临时数据池，不限大小，每滚动一次，从这里取出一项展示
+		*/
+		Queue:[],
+		/*
+		*	这个标志位，用于判断是不是在拉新数据。如果是，那控制拉动不要翻页
+		*/
+		isLoading:false,
+		/*
+		*	这个标志位，用于判断是不是第一次
+		*/
+		isFirst:true,
+		/*
+		*	取出一个项，当队列为空时，返回null,同时发起异步请求数据，
+		*	当队列只剩下N（自定义）,也发起异步请求数据。
+		*	@param renderCallback	取出一个数据后，进行的填充动作。
+		*	@param newDataCallback	用于取数据的函数。这个函数是异步拉取的。
+		*	异步函数会触发pushOne函数。请在newDataCallback 的异步回调函数中实现。
+		*	@param popCount	一次从队列取多少个元素，默认为1
+		*	@return 返回对象，则成功，返回null,提示继续等待。 
+		*/
+		popOne:function(renderCallback,newDataCallback,popCount){
+			var that = this;
+			var _queue = this.Queue;
+			popCount = popCount || 1;
+			that.renderCallback = renderCallback;
+			/*
+			*	如果正在loading中，那不提供渲染，直接return ,
+			*	不会触发renderCallback，也就是不会渲染
+			*/
+			if(true == that.isLoading){
+				return null;
+			}
+			if(_queue.length <= 2 ){
+				if($.isFunction(newDataCallback)){
+					newDataCallback.parent = that;
+					that.isLoading = true;
+					newDataCallback.call(ProductList);
+				}
+			}
+			if(_queue.length > 0){
+				//var _item = this.Queue.shift();
+				var _item = this.Queue.splice(0,popCount);
+				renderCallback.call(ProductList,_item);
+				return _item;
+			}else{
+				return null;
+			}
+		},
+		/*
+		*	@desc 用于拉取数据后，填充数据到队列里面。
+		*	@param 参数列表。
+		*/
+		pushOne:function(itemList){
+			var that = this;
+			var _queue = that.Queue;
+			if(typeof itemList.length != 'undefined' && itemList.length > 0){
+				that.Queue = _queue.concat(itemList);
+				/*
+				*	同时，把所有的数据放到缓存池里面。
+				*/
+				that.DataPool = that.DataPool.concat(itemList);
+			}
+			if(true == that.isFirst){
+				that.isFirst = false;
+				var _renderCallback = that.renderCallback;
+				var _item = that.Queue.shift();
+				_renderCallback.call(ProductList,_item);
+			}
+		}
+	};
